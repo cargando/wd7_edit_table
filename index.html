@@ -64,11 +64,13 @@
 				<div class="form-group">
 					<label for="userName">ФИО</label>
 					<input type="text" class="form-control" id="userName">
+					<!--small style="display: none;" id="emailHelp" class="form-text text-danger">Это поле обязательно для ввода</small-->
+					<small hidden id="emailHelp" class="form-text text-danger">Это поле обязательно для ввода</small>
 				</div>
 
 				<div class="form-group">
 					<label for="userEmail">Email address</label>
-					<input type="email" class="form-control" id="userEmail" aria-describedby="emailHelp">
+					<input type="email" class="form-control is-valid" id="userEmail" aria-describedby="emailHelp">
 				</div>
 
 				<div class="form-group">
@@ -94,7 +96,7 @@
 				</div>
 
 
-				<button type="submit" class="btn btn-primary">Добавить студента</button>
+				<button id="addUserButton" type="submit" class="btn btn-primary">Добавить студента</button>
 			</form>
 
 		</div>
@@ -104,6 +106,6 @@
 </div>
 
 
-
+	<script src="/js/fn.js"></script>
 </body>
 </html>
