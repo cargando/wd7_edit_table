@@ -2,6 +2,9 @@
 var STATE = {
   tableEditFlag: false,
   tableRowEditIndex: null,
+  oldCellData: null, // объект для хранения бэкапа данных из строки таблицы, которая в режиме редактирования
+  fieldsCellNames: ['id', 'userDisabled', 'userName', 'userCourse', 'userEmail', 'userRank'],
+  editableTRID: 'editableTRID',
 };
 
 
@@ -9,7 +12,7 @@ var STATE = {
 
 document.getElementById('addUserButton').addEventListener('click', handleAddStudentButtonClick);
 document.getElementById('userRank').addEventListener('change', handleRankChange);
-document.querySelector('body').addEventListener('click', handleBodyClick);
+// document.querySelector('body').addEventListener('click', handleBodyClick);
 
 
 addHandlersToTableRows();
@@ -41,6 +44,8 @@ function addHandlersToTableRows() {
 function handleTRClick(e) {
   // получить доступ к TR, по которой кликнули
   var currentElement = e.currentTarget;
+
+  insertSaveCancelControls(currentElement);
 
   // мы узнаем - может быть ранее уже был прописан данный css-класс для строки таблицы
   // если был прописан, значит поля для ввода уже имеются
@@ -77,13 +82,30 @@ function handleTRClick(e) {
     if (iconUserDisabled) {
       var userDisabledValue = Array.from(iconUserDisabled.classList).includes('text-danger');
       createSelectForTableCell(oneTD, userDisabledValue);
+      saveBackupData(i, userDisabledValue);
     } else {
       textData = oneTD.innerText;
-
       createInputForTableCell(oneTD, textData)
+      saveBackupData(i, textData);
     }
   }
+}
 
+// функция, которая сохраняет данные из ячеек в глобальный объект STATE
+// для того, чтобы сохранить бэкап данных строки таблицы, на случай отмены редактирования
+function saveBackupData(index, cellData) { // индекс ячейки (порядковый номер столбца) и текст из ячейки
+
+  var oldCellData = STATE.oldCellData || {};
+  // альтернатива записи
+  // if (STATE.oldCellData) { oldCellData = STATE.oldCellData; }
+  // else { oldCellData = {}; }
+  var field = STATE.fieldsCellNames[ index ];
+  oldCellData[ field ] = cellData;
+  // oldCellData.userName = cellData
+  // oldCellData.userEmail = cellData
+  STATE.oldCellData = oldCellData;
+  // более короткая альтернатива
+  // STATE.oldCellData = oldCellData[ (STATE.fieldsCellNames[ index ]) ] = cellData;
 }
 
 // создать поле для ввода данных и добавить его к родителю (в ячейку)
@@ -213,7 +235,7 @@ function insertRowToTable(data) {
   tbody.appendChild(newTR);
 
   // массив для обхода объекта с данными
-  var ms = ['id', 'userDisabled', 'userName', 'userCourse', 'userEmail', 'userRank'];
+  var ms = STATE.fieldsCellNames;
 
   ms.forEach(function (val){
     var newTD = document.createElement('td');
@@ -224,7 +246,6 @@ function insertRowToTable(data) {
     } else {
       newTD.innerText = data[val];
     }
-
     newTR.appendChild(newTD);
   });
 
@@ -258,6 +279,72 @@ function handleBodyClick(e) {
 
   STATE.tableEditFlag = false;
   STATE.tableRowEditIndex = null;
+}
 
+// функция добавляет новую строку с контролами для Сохранить/Отмена редактирования
+function insertSaveCancelControls(previousTR) {
+
+  if (STATE.tableEditFlag) {
+    return null;
+  }
+
+  // создать строку для таблицы - теш <tr>
+  var newTR = document.createElement('tr');
+  // прописать этому тегу css-класс editable, чтобы он не подкрашивался желтым фоном
+  newTR.className = 'editable';
+  // создать атрибут ID для тега, чтобы в дальнейшем мы его могли "разыскать" через getElementById
+  newTR.setAttribute('id', STATE.editableTRID);
+
+  // внутри создаем теги <td> - ячейка и внутри ячейки кнопку
+  newTR.innerHTML = '<td colspan="6" align="center">' +
+    '<button class="btn btn-outline-info btn-sm">сохранить</button>' +
+    '<button onclick="cancelEdit()" class="btn btn-outline-secondary btn-sm btn-space">отмена</button>' +
+    '<button class="btn btn-outline-danger btn-sm btn-space">удалить</button></td>';
+  // parent - это контейнер-родитель для previousTR - т.е. для строки по которой кликнули "редактировать"
+  // нужен он для того, чтобы через него вставить новую строку (тег <tr> выше созданный и хранящийся
+  // в переменной newTR
+  var parent = previousTR.parentElement;
+
+  // insertBefore - вставляет новую строку (newTR) в таблицу, перед строкой previousTR.nextSibling
+  parent.insertBefore(newTR, previousTR.nextSibling);
+}
+
+function cancelEdit() {
+
+  // получили доступ к строке, в которой хранятся все кнопки (сохранить/отмена/удалить)
+  var editControls = document.getElementById( STATE.editableTRID);
+  var parent = editControls.parentElement;
+
+  // удалить строку с кнопками (сохранить/отмена/удалить)
+  parent.removeChild(editControls)
+
+  var editableTR = parent.querySelector('.editable');
+
+  insertInforToTr(STATE.oldCellData, editableTR);
+
+}
+
+// функция, вставляет информацию из объекта (1й параметр) в строку таблицы
+function insertInforToTr(values, trToOperate) {
+
+  var TRChilds = trToOperate.children;
+
+  // fieldsCellNames
+
+  for(var i = 0; i < TRChilds.length; i++ ) {
+    var oneCell = TRChilds [ i ];
+    oneCell.innerHTML = '';
+
+    var field = STATE.fieldsCellNames[ i ];
+    var textData = values[ field ];
+
+    if (field === 'userDisabled') {
+      var icon = document.createElement('i');
+      icon.className = 'fas fa-user text-' + (textData ? 'danger' : 'success');
+      oneCell.appendChild(icon);
+    } else {
+      oneCell.innerText = textData;
+    }
+  }
 
 }
