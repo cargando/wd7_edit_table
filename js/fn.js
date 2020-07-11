@@ -81,11 +81,11 @@ function handleTRClick(e) {
     // проверяем, если это ячейка содержит иконку (отчислен/не отчислен)
     if (iconUserDisabled) {
       var userDisabledValue = Array.from(iconUserDisabled.classList).includes('text-danger');
-      createSelectForTableCell(oneTD, userDisabledValue);
+      createSelectForTableCell(oneTD, userDisabledValue, STATE.fieldsCellNames[ i ]);
       saveBackupData(i, userDisabledValue);
     } else {
       textData = oneTD.innerText;
-      createInputForTableCell(oneTD, textData)
+      createInputForTableCell(oneTD, textData, STATE.fieldsCellNames[ i ])
       saveBackupData(i, textData);
     }
   }
@@ -109,12 +109,15 @@ function saveBackupData(index, cellData) { // индекс ячейки (пор�
 }
 
 // создать поле для ввода данных и добавить его к родителю (в ячейку)
-function createInputForTableCell(parent, text) {
+function createInputForTableCell(parent, text, fieldName) {
   // создать тег <input>
   var input = document.createElement('input');
 
   // устанавливаем для тега <input> атрибут type и записываем в этот атрибут значение text
   input.setAttribute('type', 'text');
+
+  // установить атрибут ID, чтобы в дальнейшем (при сохрании инфо) мы могли добраться до этого элемента
+  input.setAttribute('id', fieldName + 'Inline');
 
   // добавить css-класс для нашего поля для ввода
   input.className = 'form-control';
@@ -131,9 +134,12 @@ function createInputForTableCell(parent, text) {
 
 // создать поле SELECT для того чтобы задавать значенеи студент отчислен или не отчислен
 // и добавить его к родителю (в ячейку)
-function createSelectForTableCell(parent, value) {
+function createSelectForTableCell(parent, value, fieldName) {
   // создать тег <select>
   var select = document.createElement('select');
+
+  // установить атрибут ID, чтобы в дальнейшем (при сохрании инфо) мы могли добраться до этого элемента
+  select.setAttribute('id', fieldName + 'Inline');
 
   var option1 = document.createElement('option');
   var option2 = document.createElement('option');
@@ -297,9 +303,9 @@ function insertSaveCancelControls(previousTR) {
 
   // внутри создаем теги <td> - ячейка и внутри ячейки кнопку
   newTR.innerHTML = '<td colspan="6" align="center">' +
-    '<button class="btn btn-outline-info btn-sm">сохранить</button>' +
-    '<button onclick="cancelEdit()" class="btn btn-outline-secondary btn-sm btn-space">отмена</button>' +
-    '<button class="btn btn-outline-danger btn-sm btn-space">удалить</button></td>';
+    '<button onclick="handleUpdateDataInCells()" class="btn btn-outline-info btn-sm">сохранить</button>' +
+    '<button onclick="handleCancelEditClick()" class="btn btn-outline-secondary btn-sm btn-space">отмена</button>' +
+    '<button onclick="handleDeleteRecordClick()" class="btn btn-outline-danger btn-sm btn-space">удалить</button></td>';
   // parent - это контейнер-родитель для previousTR - т.е. для строки по которой кликнули "редактировать"
   // нужен он для того, чтобы через него вставить новую строку (тег <tr> выше созданный и хранящийся
   // в переменной newTR
@@ -309,27 +315,19 @@ function insertSaveCancelControls(previousTR) {
   parent.insertBefore(newTR, previousTR.nextSibling);
 }
 
-function cancelEdit() {
+function handleCancelEditClick() {
 
-  // получили доступ к строке, в которой хранятся все кнопки (сохранить/отмена/удалить)
-  var editControls = document.getElementById( STATE.editableTRID);
-  var parent = editControls.parentElement;
-
-  // удалить строку с кнопками (сохранить/отмена/удалить)
-  parent.removeChild(editControls)
+  var oldCellData = STATE.oldCellData;
+  var parent = removeEditControlsFromTable();
 
   var editableTR = parent.querySelector('.editable');
 
-  insertInforToTr(STATE.oldCellData, editableTR);
-
+  insertInfoToTr(oldCellData, editableTR);
 }
 
 // функция, вставляет информацию из объекта (1й параметр) в строку таблицы
-function insertInforToTr(values, trToOperate) {
-
+function insertInfoToTr(values, trToOperate) {
   var TRChilds = trToOperate.children;
-
-  // fieldsCellNames
 
   for(var i = 0; i < TRChilds.length; i++ ) {
     var oneCell = TRChilds [ i ];
@@ -346,5 +344,57 @@ function insertInforToTr(values, trToOperate) {
       oneCell.innerText = textData;
     }
   }
+}
+
+function handleDeleteRecordClick(e) {
+  // получить доступ к родителю этой строки
+  var parent = removeEditControlsFromTable();
+
+  // получить доступ к строке таблицы, в которой находятся поля для ввода данных,
+  // т.е. которая находится в режиме редактирования
+  var editableTR = parent.querySelector('.editable');
+
+  // удалить строку из таблицы
+  parent.removeChild(editableTR);
+}
+
+// удалить строку с контролами для редактирования (сохранить/отмена/удалить)
+function removeEditControlsFromTable() {
+  // получит доступ к элементу, который содержит контролы (сохранить/отмена/удалить)
+  var editControls = document.getElementById( STATE.editableTRID);
+  // получить доступ к родителю этой строки
+  var parent = editControls.parentElement;
+
+  // удалить строку, содержащую контролы (сохранить/отмена/удалить)
+  parent.removeChild(editControls);
+
+  // сбросить флаг редактирования
+  STATE.tableEditFlag = false;
+  // обнулить объект с бэкапом данных
+  STATE.oldCellData = null;
+
+  return parent;
+}
+
+// сохранить изменения в строке таблицы, которая была в режиме редактирования
+function handleUpdateDataInCells() {
+
+  removeEditControlsFromTable();
+
+  var newDataFromCells = {};
+
+  STATE.fieldsCellNames.forEach(function (item, index) {
+    var text = document.getElementById(item + 'Inline').value;
+    if (item === "userDisabled") {
+      text = text === "учится" ? false : true;
+    }
+    newDataFromCells[ item ] = text;
+  });
+  //
+  // получить доступ к строке таблицы, в которой находятся поля для ввода данных,
+  // т.е. которая находится в режиме редактирования
+  var editableTR = document.getElementById('usersList').querySelector('.editable');
+
+  insertInfoToTr(newDataFromCells, editableTR);
 
 }
