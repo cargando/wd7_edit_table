@@ -376,7 +376,7 @@ function removeEditControlsFromTable() {
   return parent;
 }
 
-// сохранить изменения в строке таблицы, которая была в режиме редактирования
+// сохранить изменения в строке таблицы, которая была в режиме редактирования - *
 function handleUpdateDataInCells() {
 
   removeEditControlsFromTable();
