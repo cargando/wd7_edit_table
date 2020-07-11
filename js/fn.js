@@ -1,21 +1,50 @@
-
 var STATE = {
   tableEditFlag: false,
   tableRowEditIndex: null,
   oldCellData: null, // объект для хранения бэкапа данных из строки таблицы, которая в режиме редактирования
   fieldsCellNames: ['id', 'userDisabled', 'userName', 'userCourse', 'userEmail', 'userRank'],
   editableTRID: 'editableTRID',
+  data: [], // это будут данные со всеми студентами (массив)
 };
 
 
-// document.addEventListener('DOMContentLoaded', handleAddStudentButtonClick);
+var dataStub = [
+  {
+    id: 1,
+    userName: 'Семеныч',
+    userEmail: 'mmm@mail.ru',
+    userCourse: '3',
+    userRank: '4.55',
+    userDisabled: false,
+  },
+  {
+    id: 2,
+    userName: 'Марьям',
+    userEmail: 'santamaria@mail.ru',
+    userCourse: '5',
+    userRank: '5',
+    userDisabled: false,
+  },
+  {
+    id: 3,
+    userName: 'Larry Barry',
+    userEmail: 'barry@mail.ru',
+    userCourse: '4',
+    userRank: '4.89',
+    userDisabled: true,
+  },
+];
 
-document.getElementById('addUserButton').addEventListener('click', handleAddStudentButtonClick);
-document.getElementById('userRank').addEventListener('change', handleRankChange);
+
+
+document.addEventListener('DOMContentLoaded', initTable);
+
+// document.getElementById('addUserButton').addEventListener('click', handleAddStudentButtonClick);
+// document.getElementById('userRank').addEventListener('change', handleRankChange);
 // document.querySelector('body').addEventListener('click', handleBodyClick);
 
 
-addHandlersToTableRows();
+// addHandlersToTableRows();
 
 // функция-контейнер, которая будет вызываться сразу при после подгрузки таблицы и добавлять
 // обработчики события для всех строк таблицы (на событие click)
