@@ -37,7 +37,8 @@ var dataStub = [
 
 
 
-document.addEventListener('DOMContentLoaded', initTable);
+document.addEventListener('DOMContentLoaded', handlePageInit);
+document.getElementById('addUserButton').addEventListener('click', handleAddStudentButtonClick);
 
 // document.getElementById('addUserButton').addEventListener('click', handleAddStudentButtonClick);
 // document.getElementById('userRank').addEventListener('change', handleRankChange);
@@ -58,8 +59,6 @@ function addHandlersToTableRows() {
   // получили список - коллекция всех детей из tbody (это будут все теги <tr>)
   var allTRs = tbody.children;
 
-
-
   for(var i = 0; i < allTRs.length; i++ ) {
     // получили доступ к конкретной строке из массива всех детей (строк <tr>)
     var oneTR = allTRs[ i ];
@@ -73,7 +72,7 @@ function addHandlersToTableRows() {
 function handleTRClick(e) {
   // получить доступ к TR, по которой кликнули
   var currentElement = e.currentTarget;
-
+  console.log("handleTRClick IN", currentElement);
   insertSaveCancelControls(currentElement);
 
   // мы узнаем - может быть ранее уже был прописан данный css-класс для строки таблицы
@@ -228,12 +227,21 @@ function handleAddStudentButtonClick(e) {
   }
 
 
-  insertRowToTable(data);
+  // insertRowToTable(data);
+  var maxId = 1;
 
+  STATE.data.forEach(function (item) {
+    if(+item.id > +maxId) {
+      maxId = +item.id;
+    }
+  });
+  data.id = maxId + 1;
+  STATE.data.push(data);
+  console.log("STATE.data = ", STATE.data);
   var formElement = e.target.closest('form')
-
   formElement.reset();
 
+  initTable(); // перерисовать табличку
 }
 
 function createActiveUserIcon(parent, status) {
@@ -332,9 +340,9 @@ function insertSaveCancelControls(previousTR) {
 
   // внутри создаем теги <td> - ячейка и внутри ячейки кнопку
   newTR.innerHTML = '<td colspan="6" align="center">' +
-    '<button onclick="handleUpdateDataInCells()" class="btn btn-outline-info btn-sm">сохранить</button>' +
-    '<button onclick="handleCancelEditClick()" class="btn btn-outline-secondary btn-sm btn-space">отмена</button>' +
-    '<button onclick="handleDeleteRecordClick()" class="btn btn-outline-danger btn-sm btn-space">удалить</button></td>';
+    '<button onclick="handleUpdateDataInCells(event)" class="btn btn-outline-info btn-sm">сохранить</button>' +
+    '<button onclick="handleCancelEditClick(event)" class="btn btn-outline-secondary btn-sm btn-space">отмена</button>' +
+    '<button onclick="handleDeleteRecordClick(event)" class="btn btn-outline-danger btn-sm btn-space">удалить</button></td>';
   // parent - это контейнер-родитель для previousTR - т.е. для строки по которой кликнули "редактировать"
   // нужен он для того, чтобы через него вставить новую строку (тег <tr> выше созданный и хранящийся
   // в переменной newTR
@@ -346,12 +354,14 @@ function insertSaveCancelControls(previousTR) {
 
 function handleCancelEditClick() {
 
-  var oldCellData = STATE.oldCellData;
-  var parent = removeEditControlsFromTable();
-
-  var editableTR = parent.querySelector('.editable');
-
-  insertInfoToTr(oldCellData, editableTR);
+  initTable();
+  STATE.tableEditFlag = false;
+  // var oldCellData = STATE.oldCellData;
+  // var parent = removeEditControlsFromTable();
+  //
+  // var editableTR = parent.querySelector('.editable');
+  //
+  // insertInfoToTr(oldCellData, editableTR);
 }
 
 // функция, вставляет информацию из объекта (1й параметр) в строку таблицы
@@ -376,39 +386,26 @@ function insertInfoToTr(values, trToOperate) {
 }
 
 function handleDeleteRecordClick(e) {
-  // получить доступ к родителю этой строки
-  var parent = removeEditControlsFromTable();
 
-  // получить доступ к строке таблицы, в которой находятся поля для ввода данных,
-  // т.е. которая находится в режиме редактирования
-  var editableTR = parent.querySelector('.editable');
+  var indexToDelete = findUserInStateById(e.target);
 
-  // удалить строку из таблицы
-  parent.removeChild(editableTR);
-}
+  // если в переменной indexToDelete нул, это значит что удалять нечего, т.е. мы не нашли ID элемента, который нужно удалить
+  if (indexToDelete === null ) {
+    alert('Ошибка идентификации элемента, котоырй нужно удалить');
+  }
 
-// удалить строку с контролами для редактирования (сохранить/отмена/удалить)
-function removeEditControlsFromTable() {
-  // получит доступ к элементу, который содержит контролы (сохранить/отмена/удалить)
-  var editControls = document.getElementById( STATE.editableTRID);
-  // получить доступ к родителю этой строки
-  var parent = editControls.parentElement;
-
-  // удалить строку, содержащую контролы (сохранить/отмена/удалить)
-  parent.removeChild(editControls);
-
-  // сбросить флаг редактирования
+  // процесс удаления
+  STATE.data.splice(indexToDelete, 1);
+  // перерисовать таблицу (и одновременно обновить localStorage)
+  initTable();
   STATE.tableEditFlag = false;
-  // обнулить объект с бэкапом данных
-  STATE.oldCellData = null;
-
-  return parent;
 }
+
 
 // сохранить изменения в строке таблицы, которая была в режиме редактирования - *
-function handleUpdateDataInCells() {
+function handleUpdateDataInCells(e) {
 
-  removeEditControlsFromTable();
+  var indexToDelete = findUserInStateById(e.target);
 
   var newDataFromCells = {};
 
@@ -419,11 +416,29 @@ function handleUpdateDataInCells() {
     }
     newDataFromCells[ item ] = text;
   });
-  //
-  // получить доступ к строке таблицы, в которой находятся поля для ввода данных,
-  // т.е. которая находится в режиме редактирования
-  var editableTR = document.getElementById('usersList').querySelector('.editable');
 
-  insertInfoToTr(newDataFromCells, editableTR);
+  STATE.data[ indexToDelete ] = newDataFromCells;
+  initTable();
+  STATE.tableEditFlag = false;
+}
 
+function findUserInStateById(target) {
+  // получить доступ к строке в таблице, где находится атрибут data-id
+  var tr = target.closest('tr').previousSibling;
+  // считать атрибут data-id
+  var idToDelete = tr.getAttribute('data-id')
+  // переменная - индекс в массиве STATE.data - индекс элемента, который надо удалить
+  // по умолчанию делаем нулл, т.е. типа удалять нечего
+  var indexToDelete = null;
+
+  // пробегаемся по массиву с данными и ищем элемент у которого ID равен тому, что мы считали из
+  // атрибута data-id выше
+  STATE.data.forEach(function (item, index) {
+    if (+item.id === +idToDelete) {
+      // сохраняем индекс, который надо удалить, в нашу переменную
+      indexToDelete = index;
+    }
+  });
+
+  return indexToDelete;
 }
